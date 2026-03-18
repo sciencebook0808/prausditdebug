@@ -1,54 +1,74 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { getDb } from "@/lib/db";
+import { requireAdmin } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
-async function checkAdmin() {
-  const { userId } = await auth();
-  if (!userId) return false;
-  const sql = getDb();
-  const users = await sql`SELECT role FROM users WHERE clerk_id = ${userId}`;
-  return users.length > 0 && (users[0].role === "admin" || users[0].role === "developer");
-}
+export const runtime = "nodejs";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await checkAdmin())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const admin = await requireAdmin();
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const numId = parseInt(id);
+    if (isNaN(numId)) {
+      return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+    }
+
+    const body = await req.json();
+    const data: Record<string, unknown> = {};
+    if (body.name !== undefined) data.name = body.name;
+    if (body.slug !== undefined) data.slug = body.slug;
+    if (body.introduction !== undefined) data.introduction = body.introduction;
+    if (body.heroImage !== undefined) data.heroImage = body.heroImage;
+    if (body.status !== undefined) data.status = body.status;
+
+    const application = await prisma.application.update({
+      where: { id: numId },
+      data,
+    });
+
+    return NextResponse.json({ application });
+  } catch (error) {
+    console.error("Update application error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
-
-  const { id } = await params;
-  const body = await req.json();
-  const sql = getDb();
-
-  const { name, slug, introduction, hero_image, status } = body;
-
-  await sql`
-    UPDATE applications
-    SET name = COALESCE(${name}, name),
-        slug = COALESCE(${slug}, slug),
-        introduction = COALESCE(${introduction}, introduction),
-        hero_image = COALESCE(${hero_image}, hero_image),
-        status = COALESCE(${status}, status)
-    WHERE id = ${parseInt(id)}
-  `;
-
-  const updated = await sql`SELECT * FROM applications WHERE id = ${parseInt(id)}`;
-  return NextResponse.json({ application: updated[0] });
 }
 
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await checkAdmin())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const admin = await requireAdmin();
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const numId = parseInt(id);
+    if (isNaN(numId)) {
+      return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+    }
+
+    await prisma.application.delete({
+      where: { id: numId },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Delete application error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
-
-  const { id } = await params;
-  const sql = getDb();
-
-  await sql`DELETE FROM applications WHERE id = ${parseInt(id)}`;
-  return NextResponse.json({ success: true });
 }

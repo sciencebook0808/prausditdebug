@@ -1,45 +1,50 @@
+/** Matches Prisma User model (camelCase fields, snake_case DB columns via @map) */
 export interface DbUser {
   id: number;
-  clerk_id: string;
+  clerkId: string;
   name: string;
   email: string;
-  role: "user" | "developer" | "admin";
-  created_at: string;
+  role: string;
+  createdAt: Date;
 }
 
+/** Matches Prisma Application model */
 export interface Application {
   id: number;
   name: string;
   slug: string;
   introduction: string | null;
-  hero_image: string | null;
-  status: "draft" | "published" | "archived";
-  created_at: string;
+  heroImage: string | null;
+  status: string;
+  createdAt: Date;
 }
 
+/** Matches Prisma Documentation model */
 export interface Documentation {
   id: number;
-  application_id: number;
+  applicationId: number;
   title: string;
   slug: string;
-  parent_id: number | null;
+  parentId: number | null;
   content: string | null;
-  sort_order: number;
-  created_at: string;
+  sortOrder: number;
+  createdAt: Date;
 }
 
+/** Matches Prisma ContactSubmission model */
 export interface ContactSubmission {
   id: number;
   name: string;
   email: string | null;
   subject: string;
   message: string;
-  ip_address: string | null;
-  role_type: "anonymous" | "user" | "developer";
-  is_read: boolean;
-  created_at: string;
+  ipAddress: string | null;
+  roleType: string;
+  isRead: boolean;
+  createdAt: Date;
 }
 
+/** Documentation tree node with nested children for sidebar navigation */
 export interface DocTreeNode extends Documentation {
   children: DocTreeNode[];
 }

@@ -1,43 +1,58 @@
-import { getDb } from "@/lib/db";
-import { AppWindow, FileText, Inbox, Users } from "lucide-react";
+import { prisma, isDatabaseConfigured } from "@/lib/prisma";
+import { AppWindow, FileText, Inbox, Users, AlertTriangle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
+export const runtime = "nodejs";
+
 export default async function AdminDashboard() {
-  const sql = getDb();
+  if (!isDatabaseConfigured) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="rounded-xl border border-border bg-card p-8 text-center">
+          <AlertTriangle className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
+          <p className="text-muted-foreground">Database not configured.</p>
+        </div>
+      </div>
+    );
+  }
 
-  const [apps, docs, messages, users] = await Promise.all([
-    sql`SELECT COUNT(*) as count FROM applications`,
-    sql`SELECT COUNT(*) as count FROM documentation`,
-    sql`SELECT COUNT(*) as count FROM contact_submissions`,
-    sql`SELECT COUNT(*) as count FROM users`,
-  ]);
-
-  const unreadMessages =
-    await sql`SELECT COUNT(*) as count FROM contact_submissions WHERE is_read = false`;
+  let appCount = 0, docCount = 0, messageCount = 0, userCount = 0, unreadCount = 0;
+  try {
+    [appCount, docCount, messageCount, userCount, unreadCount] =
+      await Promise.all([
+        prisma.application.count(),
+        prisma.documentation.count(),
+        prisma.contactSubmission.count(),
+        prisma.user.count(),
+        prisma.contactSubmission.count({ where: { isRead: false } }),
+      ]);
+  } catch (error) {
+    console.error("Admin dashboard query error:", error);
+  }
 
   const stats = [
     {
       label: "Applications",
-      value: apps[0].count,
+      value: appCount,
       icon: AppWindow,
       accent: "primary" as const,
     },
     {
       label: "Documentation Pages",
-      value: docs[0].count,
+      value: docCount,
       icon: FileText,
       accent: "accent" as const,
     },
     {
       label: "Messages",
-      value: messages[0].count,
+      value: messageCount,
       icon: Inbox,
       accent: "primary" as const,
-      sub: `${unreadMessages[0].count} unread`,
+      sub: `${unreadCount} unread`,
     },
     {
       label: "Users",
-      value: users[0].count,
+      value: userCount,
       icon: Users,
       accent: "accent" as const,
     },

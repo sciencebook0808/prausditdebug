@@ -1,6 +1,6 @@
 export function VisionSection() {
   return (
-    <section className="py-24 px-6 bg-secondary/30">
+    <section className="section-alt py-24 px-6 bg-secondary/20">
       <div className="mx-auto max-w-3xl text-center">
         <p className="mb-3 text-sm font-medium uppercase tracking-widest text-accent">
           Our Vision

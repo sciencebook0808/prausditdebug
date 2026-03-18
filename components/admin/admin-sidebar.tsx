@@ -1,9 +1,9 @@
 "use client";
 
+import { lazy, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
 import {
   LayoutDashboard,
   AppWindow,
@@ -18,6 +18,29 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { DbUser } from "@/lib/types";
+
+const clerkEnabled = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+/**
+ * Lazily load the Clerk UserButton only when keys are available.
+ * Uses the same lazy-import pattern as the Navbar for consistency.
+ */
+const LazyUserButton = clerkEnabled
+  ? lazy(() =>
+      import("@clerk/nextjs").then((mod) => ({
+        default: mod.UserButton,
+      }))
+    )
+  : null;
+
+function ClerkUserButtonSafe() {
+  if (!LazyUserButton) return null;
+  return (
+    <Suspense fallback={<div className="h-8 w-8 rounded-full bg-secondary animate-pulse" />}>
+      <LazyUserButton />
+    </Suspense>
+  );
+}
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -84,7 +107,7 @@ export function AdminSidebar({ user }: { user: DbUser }) {
 
       {/* User section */}
       <div className="flex items-center gap-3 border-t border-border px-5 py-4">
-        <UserButton afterSignOutUrl="/" />
+        <ClerkUserButtonSafe />
         <div className="flex-1 min-w-0">
           <p className="truncate text-sm font-medium text-foreground">
             {user.name}

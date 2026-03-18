@@ -1,28 +1,39 @@
 import type { Metadata } from "next";
-import { getDb } from "@/lib/db";
+import { prisma, isDatabaseConfigured } from "@/lib/prisma";
 import Link from "next/link";
-import { FileText, ArrowRight } from "lucide-react";
+import { FileText, ArrowRight, AlertTriangle } from "lucide-react";
+
+export const runtime = "nodejs";
 
 export const metadata: Metadata = {
   title: "Documentation",
 };
 
 export default async function DocumentationPage() {
-  const sql = getDb();
-  const apps = await sql`SELECT * FROM applications ORDER BY name ASC`;
+  if (!isDatabaseConfigured) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="rounded-xl border border-border bg-card p-8 text-center">
+          <AlertTriangle className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
+          <p className="text-muted-foreground">Database not configured.</p>
+        </div>
+      </div>
+    );
+  }
 
-  const docCounts = await sql`
-    SELECT application_id, COUNT(*) as count
-    FROM documentation
-    GROUP BY application_id
-  `;
-
-  const countMap = new Map(
-    docCounts.map((d: { application_id: number; count: string }) => [
-      d.application_id,
-      parseInt(d.count),
-    ])
-  );
+  let apps: Awaited<ReturnType<typeof prisma.application.findMany>> = [];
+  try {
+    apps = await prisma.application.findMany({
+      orderBy: { name: "asc" },
+      include: {
+        _count: {
+          select: { documentation: true },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Documentation page query error:", error);
+  }
 
   return (
     <div className="p-6 md:p-8">
@@ -52,7 +63,7 @@ export default async function DocumentationPage() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {apps.map((app: { id: number; name: string; slug: string }) => (
+          {apps.map((app) => (
             <Link
               key={app.id}
               href={`/admin/applications/${app.id}`}
@@ -66,8 +77,8 @@ export default async function DocumentationPage() {
                 /{app.slug}
               </p>
               <p className="mt-3 text-sm text-muted-foreground">
-                {countMap.get(app.id) || 0} documentation page
-                {(countMap.get(app.id) || 0) !== 1 ? "s" : ""}
+                {app._count.documentation} documentation page
+                {app._count.documentation !== 1 ? "s" : ""}
               </p>
             </Link>
           ))}

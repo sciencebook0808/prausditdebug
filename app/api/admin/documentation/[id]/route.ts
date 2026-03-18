@@ -1,52 +1,72 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { getDb } from "@/lib/db";
+import { requireAdmin } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
-async function checkAdmin() {
-  const { userId } = await auth();
-  if (!userId) return false;
-  const sql = getDb();
-  const users = await sql`SELECT role FROM users WHERE clerk_id = ${userId}`;
-  return users.length > 0 && (users[0].role === "admin" || users[0].role === "developer");
-}
+export const runtime = "nodejs";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await checkAdmin())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    const admin = await requireAdmin();
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  const { id } = await params;
-  const body = await req.json();
-  const sql = getDb();
+    const { id } = await params;
+    const numId = parseInt(id);
+    if (isNaN(numId)) {
+      return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+    }
 
-  if (body.content !== undefined) {
-    await sql`UPDATE documentation SET content = ${body.content} WHERE id = ${parseInt(id)}`;
-  }
-  if (body.title !== undefined) {
-    await sql`UPDATE documentation SET title = ${body.title} WHERE id = ${parseInt(id)}`;
-  }
-  if (body.sort_order !== undefined) {
-    await sql`UPDATE documentation SET sort_order = ${body.sort_order} WHERE id = ${parseInt(id)}`;
-  }
+    const body = await req.json();
+    const data: Record<string, unknown> = {};
+    if (body.content !== undefined) data.content = body.content;
+    if (body.title !== undefined) data.title = body.title;
+    if (body.sortOrder !== undefined) data.sortOrder = body.sortOrder;
 
-  const updated = await sql`SELECT * FROM documentation WHERE id = ${parseInt(id)}`;
-  return NextResponse.json({ doc: updated[0] });
+    const doc = await prisma.documentation.update({
+      where: { id: numId },
+      data,
+    });
+
+    return NextResponse.json({ doc });
+  } catch (error) {
+    console.error("Update documentation error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await checkAdmin())) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const admin = await requireAdmin();
+    if (!admin) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const numId = parseInt(id);
+    if (isNaN(numId)) {
+      return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+    }
+
+    await prisma.documentation.delete({
+      where: { id: numId },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Delete documentation error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
   }
-
-  const { id } = await params;
-  const sql = getDb();
-
-  await sql`DELETE FROM documentation WHERE id = ${parseInt(id)}`;
-  return NextResponse.json({ success: true });
 }

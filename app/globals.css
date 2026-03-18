@@ -136,6 +136,31 @@
   }
 }
 
+/* ─── Premium ambient background (light mode) ─── */
+body {
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(8, 145, 178, 0.06), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 90% 80%, rgba(124, 58, 237, 0.04), transparent 50%),
+    radial-gradient(ellipse 40% 30% at 10% 60%, rgba(8, 145, 178, 0.03), transparent 50%);
+}
+
+.dark body::before,
+body:is(.dark *)::before {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 245, 255, 0.05), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 90%, rgba(138, 43, 226, 0.04), transparent 50%),
+    radial-gradient(ellipse 40% 30% at 10% 50%, rgba(0, 245, 255, 0.02), transparent 50%);
+}
+
 /* ─── Glass morphism ─── */
 .glass {
   background: var(--glass-bg);
@@ -203,6 +228,25 @@
 }
 .dark .text-glow-purple {
   text-shadow: 0 0 20px rgba(138, 43, 226, 0.4);
+}
+
+/* ─── Section separator gradients ─── */
+.section-alt {
+  position: relative;
+}
+
+.section-alt::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(8, 145, 178, 0.02) 30%, rgba(124, 58, 237, 0.02) 70%, transparent 100%);
+}
+
+.dark .section-alt::before {
+  background:
+    linear-gradient(180deg, transparent 0%, rgba(0, 245, 255, 0.015) 30%, rgba(138, 43, 226, 0.015) 70%, transparent 100%);
 }
 
 /* ─── Scrollbar styling ─── */

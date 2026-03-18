@@ -1,24 +1,34 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getDb } from "@/lib/db";
+import { prisma, isDatabaseConfigured } from "@/lib/prisma";
 import { DocContent } from "@/components/docs/doc-content";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+
+export const runtime = "nodejs";
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ applicationSlug: string; docSlug: string }>;
 }): Promise<Metadata> {
-  const { applicationSlug, docSlug } = await params;
-  const sql = getDb();
-  const apps =
-    await sql`SELECT id, name FROM applications WHERE slug = ${applicationSlug} AND status = 'published'`;
-  if (apps.length === 0) return { title: "Not Found" };
-  const docs =
-    await sql`SELECT title FROM documentation WHERE application_id = ${apps[0].id} AND slug = ${docSlug}`;
-  if (docs.length === 0) return { title: "Not Found" };
-  return { title: `${docs[0].title} - ${apps[0].name}` };
+  if (!isDatabaseConfigured) return { title: "Not Found" };
+  try {
+    const { applicationSlug, docSlug } = await params;
+    const app = await prisma.application.findUnique({
+      where: { slug: applicationSlug },
+      select: { id: true, name: true, status: true },
+    });
+    if (!app || app.status !== "published") return { title: "Not Found" };
+    const doc = await prisma.documentation.findUnique({
+      where: { applicationId_slug: { applicationId: app.id, slug: docSlug } },
+      select: { title: true },
+    });
+    if (!doc) return { title: "Not Found" };
+    return { title: `${doc.title} - ${app.name}` };
+  } catch {
+    return { title: "Not Found" };
+  }
 }
 
 export default async function DocPage({
@@ -26,39 +36,47 @@ export default async function DocPage({
 }: {
   params: Promise<{ applicationSlug: string; docSlug: string }>;
 }) {
+  if (!isDatabaseConfigured) notFound();
+
   const { applicationSlug, docSlug } = await params;
-  const sql = getDb();
 
-  const apps =
-    await sql`SELECT * FROM applications WHERE slug = ${applicationSlug} AND status = 'published'`;
-  if (apps.length === 0) notFound();
+  let app;
+  let doc;
+  let prevDoc: { id: number; title: string; slug: string } | null = null;
+  let nextDoc: { id: number; title: string; slug: string } | null = null;
+  let children: { id: number; title: string; slug: string }[] = [];
 
-  const docs =
-    await sql`SELECT * FROM documentation WHERE application_id = ${apps[0].id} AND slug = ${docSlug}`;
-  if (docs.length === 0) notFound();
+  try {
+    app = await prisma.application.findUnique({
+      where: { slug: applicationSlug },
+    });
+    if (!app || app.status !== "published") notFound();
 
-  const doc = docs[0];
+    doc = await prisma.documentation.findUnique({
+      where: { applicationId_slug: { applicationId: app.id, slug: docSlug } },
+    });
+    if (!doc) notFound();
 
-  // Get all docs for prev/next navigation
-  const allDocs = await sql`
-    SELECT id, title, slug, sort_order FROM documentation
-    WHERE application_id = ${apps[0].id}
-    ORDER BY sort_order ASC, created_at ASC
-  `;
+    const allDocs = await prisma.documentation.findMany({
+      where: { applicationId: app.id },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, title: true, slug: true, sortOrder: true },
+    });
 
-  const currentIndex = allDocs.findIndex(
-    (d: { id: number }) => d.id === doc.id
-  );
-  const prevDoc = currentIndex > 0 ? allDocs[currentIndex - 1] : null;
-  const nextDoc =
-    currentIndex < allDocs.length - 1 ? allDocs[currentIndex + 1] : null;
+    const currentIndex = allDocs.findIndex((d) => d.id === doc.id);
+    prevDoc = currentIndex > 0 ? allDocs[currentIndex - 1] : null;
+    nextDoc =
+      currentIndex < allDocs.length - 1 ? allDocs[currentIndex + 1] : null;
 
-  // Get children for this doc
-  const children = await sql`
-    SELECT id, title, slug FROM documentation
-    WHERE parent_id = ${doc.id}
-    ORDER BY sort_order ASC
-  `;
+    children = await prisma.documentation.findMany({
+      where: { parentId: doc.id },
+      orderBy: { sortOrder: "asc" },
+      select: { id: true, title: true, slug: true },
+    });
+  } catch (error) {
+    console.error("Doc page query error:", error);
+    notFound();
+  }
 
   return (
     <div className="max-w-3xl">
@@ -71,17 +89,15 @@ export default async function DocPage({
             In this section
           </h3>
           <div className="flex flex-col gap-2">
-            {children.map(
-              (child: { id: number; title: string; slug: string }) => (
-                <Link
-                  key={child.id}
-                  href={`/${applicationSlug}/docs/${child.slug}`}
-                  className="rounded-lg border border-border p-3 text-sm text-foreground transition-colors hover:border-primary/30 hover:bg-secondary"
-                >
-                  {child.title}
-                </Link>
-              )
-            )}
+            {children.map((child) => (
+              <Link
+                key={child.id}
+                href={`/${applicationSlug}/docs/${child.slug}`}
+                className="rounded-lg border border-border p-3 text-sm text-foreground transition-colors hover:border-primary/30 hover:bg-secondary"
+              >
+                {child.title}
+              </Link>
+            ))}
           </div>
         </div>
       )}

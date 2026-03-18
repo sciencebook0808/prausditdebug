@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
-import { getDb } from "@/lib/db";
+import { prisma, isDatabaseConfigured } from "@/lib/prisma";
 import { DocsSidebar } from "@/components/docs/docs-sidebar";
 import type { Documentation, DocTreeNode } from "@/lib/types";
+
+export const runtime = "nodejs";
 
 function buildDocTree(docs: Documentation[]): DocTreeNode[] {
   const map = new Map<number, DocTreeNode>();
@@ -13,8 +15,8 @@ function buildDocTree(docs: Documentation[]): DocTreeNode[] {
 
   docs.forEach((doc) => {
     const node = map.get(doc.id)!;
-    if (doc.parent_id && map.has(doc.parent_id)) {
-      map.get(doc.parent_id)!.children.push(node);
+    if (doc.parentId && map.has(doc.parentId)) {
+      map.get(doc.parentId)!.children.push(node);
     } else {
       roots.push(node);
     }
@@ -30,21 +32,27 @@ export default async function DocsLayout({
   children: React.ReactNode;
   params: Promise<{ applicationSlug: string }>;
 }) {
+  if (!isDatabaseConfigured) notFound();
+
   const { applicationSlug } = await params;
-  const sql = getDb();
 
-  const apps =
-    await sql`SELECT * FROM applications WHERE slug = ${applicationSlug} AND status = 'published'`;
-  if (apps.length === 0) notFound();
+  let app;
+  let docTree: DocTreeNode[] = [];
+  try {
+    app = await prisma.application.findUnique({
+      where: { slug: applicationSlug },
+    });
+    if (!app || app.status !== "published") notFound();
 
-  const app = apps[0];
-  const docs = await sql`
-    SELECT * FROM documentation
-    WHERE application_id = ${app.id}
-    ORDER BY sort_order ASC, created_at ASC
-  `;
-
-  const docTree = buildDocTree(docs);
+    const docs = await prisma.documentation.findMany({
+      where: { applicationId: app.id },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    });
+    docTree = buildDocTree(docs as Documentation[]);
+  } catch (error) {
+    console.error("Docs layout query error:", error);
+    notFound();
+  }
 
   return (
     <div className="flex min-h-screen pt-24">

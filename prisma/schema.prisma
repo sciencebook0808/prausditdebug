@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  clerkId   String   @unique @map("clerk_id")
+  name      String
+  email     String   @unique
+  role      String   @default("user")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([clerkId])
+  @@index([role])
+  @@map("users")
+}
+
+model Application {
+  id            Int             @id @default(autoincrement())
+  name          String
+  slug          String          @unique
+  introduction  String?
+  heroImage     String?         @map("hero_image")
+  status        String          @default("draft")
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  documentation Documentation[]
+
+  @@index([slug])
+  @@index([status])
+  @@map("applications")
+}
+
+model Documentation {
+  id            Int             @id @default(autoincrement())
+  applicationId Int             @map("application_id")
+  title         String
+  slug          String
+  parentId      Int?            @map("parent_id")
+  content       String?
+  sortOrder     Int             @default(0) @map("sort_order")
+  createdAt     DateTime        @default(now()) @map("created_at") @db.Timestamptz
+
+  application Application      @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  parent      Documentation?   @relation("DocTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Documentation[]  @relation("DocTree")
+
+  @@unique([applicationId, slug])
+  @@index([applicationId])
+  @@index([parentId])
+  @@map("documentation")
+}
+
+model ContactSubmission {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String?
+  subject   String
+  message   String
+  ipAddress String?  @map("ip_address")
+  roleType  String   @default("anonymous") @map("role_type")
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([roleType])
+  @@index([isRead])
+  @@index([email])
+  @@index([ipAddress])
+  @@map("contact_submissions")
+}

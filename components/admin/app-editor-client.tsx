@@ -53,7 +53,7 @@ export function AppEditorClient({
           name: fd.get("name"),
           slug: fd.get("slug"),
           introduction: fd.get("introduction"),
-          hero_image: fd.get("hero_image"),
+          heroImage: fd.get("heroImage"),
           status: fd.get("status"),
         }),
       });
@@ -79,12 +79,12 @@ export function AppEditorClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          application_id: app.id,
+          applicationId: app.id,
           title: fd.get("title"),
           slug: fd.get("slug"),
-          parent_id: fd.get("parent_id") || null,
+          parentId: fd.get("parentId") || null,
           content: "",
-          sort_order: docs.length,
+          sortOrder: docs.length,
         }),
       });
       const data = await res.json();
@@ -137,7 +137,7 @@ export function AppEditorClient({
       .replace(/(^-|-$)/g, "");
   }
 
-  const parentOptions = docs.filter((d) => d.parent_id === null);
+  const parentOptions = docs.filter((d) => d.parentId === null);
 
   if (editingDoc) {
     return (
@@ -228,8 +228,8 @@ export function AppEditorClient({
               <div className="flex flex-col gap-2">
                 <Label className="text-foreground">Hero Image URL</Label>
                 <Input
-                  name="hero_image"
-                  defaultValue={app.hero_image || ""}
+                  name="heroImage"
+                  defaultValue={app.heroImage || ""}
                   className="bg-input border-border text-foreground"
                 />
               </div>
@@ -312,7 +312,7 @@ export function AppEditorClient({
                       Parent Page (optional)
                     </Label>
                     <select
-                      name="parent_id"
+                      name="parentId"
                       className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
                     >
                       <option value="">None (top-level)</option>
@@ -342,7 +342,7 @@ export function AppEditorClient({
             ) : (
               <div className="divide-y divide-border">
                 {docs
-                  .filter((d) => d.parent_id === null)
+                  .filter((d) => d.parentId === null)
                   .map((doc) => (
                     <div key={doc.id}>
                       <div className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/50">
@@ -379,7 +379,7 @@ export function AppEditorClient({
                       </div>
                       {/* Children */}
                       {docs
-                        .filter((c) => c.parent_id === doc.id)
+                        .filter((c) => c.parentId === doc.id)
                         .map((child) => (
                           <div
                             key={child.id}

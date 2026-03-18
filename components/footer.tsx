@@ -4,7 +4,7 @@ import { Github, FileText, Mail } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="border-t border-border bg-card">
+    <footer className="border-t border-border/60 bg-card/50 backdrop-blur-sm">
       <div className="mx-auto max-w-6xl px-6 py-12">
         <div className="grid gap-8 md:grid-cols-4">
           {/* Brand */}

@@ -33,7 +33,7 @@ export function InboxClient({
   const selected = submissions.find((s) => s.id === selectedId);
 
   function filterSubmissions(role: string) {
-    let filtered = submissions.filter((s) => s.role_type === role);
+    let filtered = submissions.filter((s) => s.roleType === role);
     if (search) {
       const q = search.toLowerCase();
       filtered = filtered.filter(
@@ -43,8 +43,8 @@ export function InboxClient({
           (s.email && s.email.toLowerCase().includes(q))
       );
     }
-    if (filter === "read") filtered = filtered.filter((s) => s.is_read);
-    if (filter === "unread") filtered = filtered.filter((s) => !s.is_read);
+    if (filter === "read") filtered = filtered.filter((s) => s.isRead);
+    if (filter === "unread") filtered = filtered.filter((s) => !s.isRead);
     return filtered;
   }
 
@@ -53,10 +53,10 @@ export function InboxClient({
       await fetch(`/api/admin/inbox/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_read: true }),
+        body: JSON.stringify({ isRead: true }),
       });
       setSubmissions((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, is_read: true } : s))
+        prev.map((s) => (s.id === id ? { ...s, isRead: true } : s))
       );
     } catch {
       toast.error("Failed to mark as read");
@@ -76,7 +76,7 @@ export function InboxClient({
 
   function openMessage(s: ContactSubmission) {
     setSelectedId(s.id);
-    if (!s.is_read) markAsRead(s.id);
+    if (!s.isRead) markAsRead(s.id);
   }
 
   function MessageList({ role }: { role: string }) {
@@ -97,11 +97,11 @@ export function InboxClient({
             className={cn(
               "flex items-start gap-3 px-4 py-3 text-left transition-all duration-200 hover:bg-secondary",
               selectedId === s.id && "bg-secondary",
-              !s.is_read && "bg-primary/[0.03]"
+              !s.isRead && "bg-primary/[0.03]"
             )}
           >
             <div className="mt-1 shrink-0">
-              {s.is_read ? (
+              {s.isRead ? (
                 <MailOpen size={16} className="text-muted-foreground" />
               ) : (
                 <Circle
@@ -115,7 +115,7 @@ export function InboxClient({
                 <p
                   className={cn(
                     "truncate text-sm",
-                    !s.is_read
+                    !s.isRead
                       ? "font-semibold text-foreground"
                       : "text-foreground"
                   )}
@@ -123,7 +123,7 @@ export function InboxClient({
                   {s.name}
                 </p>
                 <span className="shrink-0 text-xs text-muted-foreground">
-                  {formatDistanceToNow(new Date(s.created_at), {
+                  {formatDistanceToNow(new Date(s.createdAt), {
                     addSuffix: true,
                   })}
                 </span>
@@ -158,7 +158,7 @@ export function InboxClient({
             Back
           </Button>
           <div className="flex items-center gap-2">
-            {!selected.is_read && (
+            {!selected.isRead && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -197,11 +197,11 @@ export function InboxClient({
             )}
             <div>
               <span className="font-medium text-foreground">Type:</span>{" "}
-              <span className="capitalize">{selected.role_type}</span>
+              <span className="capitalize">{selected.roleType}</span>
             </div>
             <div>
               <span className="font-medium text-foreground">Date:</span>{" "}
-              {new Date(selected.created_at).toLocaleString()}
+              {new Date(selected.createdAt).toLocaleString()}
             </div>
           </div>
           <div className="whitespace-pre-wrap rounded-xl border border-border bg-secondary p-4 text-sm leading-relaxed text-foreground">

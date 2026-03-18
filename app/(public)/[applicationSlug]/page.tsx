@@ -2,24 +2,31 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { getDb } from "@/lib/db";
+import { prisma, isDatabaseConfigured } from "@/lib/prisma";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+export const runtime = "nodejs";
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ applicationSlug: string }>;
 }): Promise<Metadata> {
-  const { applicationSlug } = await params;
-  const sql = getDb();
-  const apps =
-    await sql`SELECT * FROM applications WHERE slug = ${applicationSlug} AND status = 'published'`;
-  if (apps.length === 0) return { title: "Not Found" };
-  return {
-    title: apps[0].name,
-    description: apps[0].introduction || `${apps[0].name} by Prausdit`,
-  };
+  if (!isDatabaseConfigured) return { title: "Not Found" };
+  try {
+    const { applicationSlug } = await params;
+    const app = await prisma.application.findUnique({
+      where: { slug: applicationSlug },
+    });
+    if (!app || app.status !== "published") return { title: "Not Found" };
+    return {
+      title: app.name,
+      description: app.introduction || `${app.name} by Prausdit`,
+    };
+  } catch {
+    return { title: "Not Found" };
+  }
 }
 
 export default async function ApplicationPage({
@@ -27,28 +34,36 @@ export default async function ApplicationPage({
 }: {
   params: Promise<{ applicationSlug: string }>;
 }) {
+  if (!isDatabaseConfigured) notFound();
+
   const { applicationSlug } = await params;
-  const sql = getDb();
-  const apps =
-    await sql`SELECT * FROM applications WHERE slug = ${applicationSlug} AND status = 'published'`;
 
-  if (apps.length === 0) notFound();
-  const app = apps[0];
+  let app;
+  let docs: { id: number; title: string; slug: string }[] = [];
+  try {
+    app = await prisma.application.findUnique({
+      where: { slug: applicationSlug },
+    });
+    if (!app || app.status !== "published") notFound();
 
-  const docs = await sql`
-    SELECT id, title, slug FROM documentation
-    WHERE application_id = ${app.id} AND parent_id IS NULL
-    ORDER BY sort_order ASC
-    LIMIT 6
-  `;
+    docs = await prisma.documentation.findMany({
+      where: { applicationId: app.id, parentId: null },
+      orderBy: { sortOrder: "asc" },
+      take: 6,
+      select: { id: true, title: true, slug: true },
+    });
+  } catch (error) {
+    console.error("Application page query error:", error);
+    notFound();
+  }
 
   return (
     <section className="px-6 pt-32 pb-24">
       <div className="mx-auto max-w-4xl">
-        {app.hero_image && (
+        {app.heroImage && (
           <div className="mb-8 overflow-hidden rounded-2xl neon-border-cyan">
             <Image
-              src={app.hero_image}
+              src={app.heroImage}
               alt={app.name}
               width={1200}
               height={400}
@@ -87,25 +102,23 @@ export default async function ApplicationPage({
               </Button>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              {docs.map(
-                (doc: { id: number; title: string; slug: string }) => (
-                  <Link
-                    key={doc.id}
-                    href={`/${applicationSlug}/docs/${doc.slug}`}
-                    className="glass rounded-xl p-5 transition-all hover:neon-glow-cyan"
-                  >
-                    <div className="flex items-center gap-3">
-                      <BookOpen
-                        size={20}
-                        className="shrink-0 text-primary"
-                      />
-                      <span className="font-medium text-foreground">
-                        {doc.title}
-                      </span>
-                    </div>
-                  </Link>
-                )
-              )}
+              {docs.map((doc) => (
+                <Link
+                  key={doc.id}
+                  href={`/${applicationSlug}/docs/${doc.slug}`}
+                  className="glass rounded-xl p-5 transition-all hover:neon-glow-cyan"
+                >
+                  <div className="flex items-center gap-3">
+                    <BookOpen
+                      size={20}
+                      className="shrink-0 text-primary"
+                    />
+                    <span className="font-medium text-foreground">
+                      {doc.title}
+                    </span>
+                  </div>
+                </Link>
+              ))}
             </div>
           </div>
         )}

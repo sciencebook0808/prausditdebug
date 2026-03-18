@@ -78,7 +78,7 @@ export function UsersClient({ users: initial }: { users: DbUser[] }) {
                 </Select>
               </td>
               <td className="whitespace-nowrap px-6 py-4 text-sm text-muted-foreground">
-                {formatDistanceToNow(new Date(u.created_at), {
+                {formatDistanceToNow(new Date(u.createdAt), {
                   addSuffix: true,
                 })}
               </td>

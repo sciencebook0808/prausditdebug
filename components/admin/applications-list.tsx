@@ -48,7 +48,7 @@ export function ApplicationsList({
           name: fd.get("name"),
           slug: fd.get("slug"),
           introduction: fd.get("introduction"),
-          hero_image: fd.get("hero_image"),
+          heroImage: fd.get("heroImage"),
           status: fd.get("status"),
         }),
       });
@@ -145,7 +145,7 @@ export function ApplicationsList({
               <div className="flex flex-col gap-2">
                 <Label className="text-foreground">Hero Image URL</Label>
                 <Input
-                  name="hero_image"
+                  name="heroImage"
                   placeholder="https://..."
                   className="bg-input border-border text-foreground"
                 />
@@ -208,7 +208,7 @@ export function ApplicationsList({
             )}
             <p className="mb-4 text-xs text-muted-foreground">
               Created{" "}
-              {formatDistanceToNow(new Date(app.created_at), {
+              {formatDistanceToNow(new Date(app.createdAt), {
                 addSuffix: true,
               })}
             </p>

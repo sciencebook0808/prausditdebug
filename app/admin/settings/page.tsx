@@ -1,16 +1,31 @@
 import type { Metadata } from "next";
-import { auth } from "@clerk/nextjs/server";
-import { getDb } from "@/lib/db";
+import { prisma, isDatabaseConfigured } from "@/lib/prisma";
+import { isClerkConfigured } from "@/lib/auth";
+import { AlertTriangle } from "lucide-react";
+
+export const runtime = "nodejs";
 
 export const metadata: Metadata = {
   title: "Settings",
 };
 
 export default async function SettingsPage() {
-  const { userId } = await auth();
-  const sql = getDb();
-  const users = await sql`SELECT * FROM users WHERE clerk_id = ${userId}`;
-  const user = users[0];
+  let user: { name: string; email: string; role: string; clerkId: string } | null = null;
+
+  if (isClerkConfigured && isDatabaseConfigured) {
+    try {
+      const { auth } = await import("@clerk/nextjs/server");
+      const { userId } = await auth();
+      if (userId) {
+        const dbUser = await prisma.user.findUnique({ where: { clerkId: userId } });
+        if (dbUser) {
+          user = { name: dbUser.name, email: dbUser.email, role: dbUser.role, clerkId: dbUser.clerkId };
+        }
+      }
+    } catch (error) {
+      console.error("Settings page error:", error);
+    }
+  }
 
   return (
     <div className="p-6 md:p-8">
@@ -45,7 +60,7 @@ export default async function SettingsPage() {
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Clerk ID</span>
             <span className="text-sm font-mono text-muted-foreground">
-              {user?.clerk_id}
+              {user?.clerkId}
             </span>
           </div>
         </div>
